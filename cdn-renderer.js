@@ -6,7 +6,7 @@
 window.CdnRenderer = {
     render: function (el, html) {
         if (el && typeof html === 'string') {
-            el.innerHTML = html;
+            el.textContent = html;
         }
     }
 };
