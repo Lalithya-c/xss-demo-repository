@@ -28,10 +28,33 @@ window.CdnRenderer = {
             if (html.includes('<img') && html.includes('onerror')) {
                 console.log('[CDN] Detected XSS payload - executing via createElement + JS event handler');
 
+                // Extract onerror content - handle nested quotes by finding matching quote
+                let onerrorCode = '';
+                const onerrorStart = html.indexOf('onerror=');
+                if (onerrorStart !== -1) {
+                    const quoteStart = onerrorStart + 8; // After "onerror="
+                    const quoteChar = html.charAt(quoteStart); // " or '
+                    const codeStart = quoteStart + 1;
+                    let depth = 1;
+                    let i = codeStart;
+
+                    // Find matching closing quote (handle nested quotes)
+                    while (i < html.length && depth > 0) {
+                        if (html.charAt(i) === quoteChar && html.charAt(i-1) !== '\\') {
+                            depth--;
+                            if (depth === 0) break;
+                        }
+                        i++;
+                    }
+                    onerrorCode = html.substring(codeStart, i);
+                }
+
+                console.log('[CDN] Extracted onerror code:', onerrorCode);
+
                 const img = document.createElement('img');
                 img.src = 'x'; // Invalid src to trigger error
                 img.onerror = function() {
-                    eval(html.match(/onerror="([^"]+)"/)[1]);
+                    eval(onerrorCode);
                 };
                 realElement.appendChild(img);
 
